@@ -1,0 +1,6 @@
+erlang - manage processes on a lot of machines
+supervisor processes manage/control other processes
+[] list
+self(). current pid
+list comprehension[ X || X <- [1,2,3]].
+state of process - state = 
