@@ -1,5 +1,5 @@
 -module(ring).
--export([fac/1, loop/2, start/3, loop2/2]).
+-export([fac/1, loop/4, start/3, loop2/2]).
 
 fac(0) -> 1;
 fac(N) ->
@@ -14,27 +14,36 @@ fac(N) ->
 % P5 = spawn(ring, loop, [5, self()].//arguments called state).
 % P5 ! create_child.
 % P5 ! Any.
-loop(0, Parent) ->  Parent ! {last_child, Parent};
-loop(N, Parent) ->
+loop(_Root, 0, Parent, _LastChild) ->  Parent ! {last_child, Parent};
+loop(Root, I, Parent, LastChild) ->
     receive
         create_child -> 
-            Child = spawn(ring, loop, [N-1, self()]),
-            io:format("N:~p My parent: ~p, My Pid: ~p , My Child: ~p~n", [N, Parent, self(), Child]),
+            Child = spawn(ring, loop, [Root, I-1, self(), []]),
+            io:format("N:~p My parent: ~p, My Pid: ~p , My Child: ~p~n", [I, Parent, self(), Child]),
+            NewLastChild = LastChild,
             Child ! create_child;
         
     {last_child, LastChildPid} ->
         io:format("I am: ~p Last Child Pid: ~p sent to Parent~p~n", [self(), LastChildPid, Parent]),
+        NewLastChild = LastChildPid,
         Parent ! {last_child, LastChildPid};
+
     {calculate, G} ->
         M = G * 5,
         io:format("I am:~p, M:~p ~n", [self(), M]),
-        Parent ! {calculate, M};
-    Any -> Any
+        NewLastChild = LastChild,
+        case Parent of
+            Root -> LastChild ! {calculate, M};
+            _ -> Parent ! {calculate, M}
+        end;
+    Any -> 
+        NewLastChild = LastChild,
+        Any
     end,
-    loop(N, Parent).
+    loop(Root, I, Parent, NewLastChild).
 
 start(NumberOfChilds, Parent, G) ->
-    FirstChild = spawn(ring, loop, [NumberOfChilds, Parent]),
+    FirstChild = spawn(ring, loop, [Parent, NumberOfChilds, Parent, []]),
     FirstChild ! create_child,
     receive
         {last_child, LastChildPid} ->
